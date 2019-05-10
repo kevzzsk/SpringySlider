@@ -97,6 +97,11 @@ class SpringSlider extends StatefulWidget {
 }
 
 class _SpringSliderState extends State<SpringSlider> {
+  final double paddingTop = 50.0;
+  final double paddingBottom = 50.0;
+
+  double sliderPercent = 0.50;
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -104,11 +109,12 @@ class _SpringSliderState extends State<SpringSlider> {
         new SliderMarks(
           markCount: widget.markCount,
           color: widget.positiveColor,
-          paddingTop: 50.0,
-          paddingBottom: 50.0,
+          paddingTop: paddingTop,
+          paddingBottom: paddingBottom,
         ),
-        ClipPath( // custom CLIP
-        clipper:  new SliderClipper(),
+        ClipPath(
+          // custom CLIP
+          clipper: new SliderClipper(),
           child: new Stack(
             children: <Widget>[
               new Container(
@@ -117,12 +123,50 @@ class _SpringSliderState extends State<SpringSlider> {
               new SliderMarks(
                 markCount: widget.markCount,
                 color: widget.negativeColor,
-                paddingTop: 50.0,
-                paddingBottom: 50.0,
+                paddingTop: paddingTop,
+                paddingBottom: paddingBottom,
               ),
             ],
           ),
-        )
+        ),
+        new Padding(
+          padding: EdgeInsets.only(top: paddingTop, bottom: paddingBottom),
+          child: LayoutBuilder(
+            builder: (BuildContext context, BoxConstraints constraints) {
+              final height = constraints.maxHeight;
+              final sliderY = height * (1.0 - sliderPercent);
+              final pointsYouNeed = (100 * (1.0 - sliderPercent)).round();
+              final pointsYouHave = (100 - pointsYouNeed);
+
+              return new Stack(
+                children: <Widget>[
+                  new Positioned(
+                    left: 30.0,
+                    top: sliderY - 50.0,
+                    child: FractionalTranslation(
+                        translation: Offset(0.0, -1.0),
+                        child: new Points(
+                          points: pointsYouNeed,
+                          isAboveSlider: true,
+                          isPointsYouNeed: true,
+                          color: Theme.of(context).highlightColor,
+                        )),
+                  ),
+                  new Positioned(
+                    left: 30.0,
+                    top: sliderY + 50.0,
+                    child: new Points(
+                      points: pointsYouHave,
+                      isAboveSlider: false,
+                      isPointsYouNeed: false,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  )
+                ],
+              );
+            },
+          ),
+        ),
       ],
     );
   }
@@ -207,17 +251,13 @@ class SliderMarksPainter extends CustomPainter {
   }
 }
 
-class SliderClipper extends CustomClipper<Path>{
-
-
+class SliderClipper extends CustomClipper<Path> {
   @override
   prefix0.Path getClip(prefix0.Size size) {
     Path rect = new Path();
 
     rect.addRect(
-      new Rect.fromLTWH(
-        0.0, size.height/2, size.width, size.height)
-    );
+        new Rect.fromLTWH(0.0, size.height / 2, size.width, size.height));
 
     return rect;
   }
@@ -227,5 +267,56 @@ class SliderClipper extends CustomClipper<Path>{
     // TODO: implement shouldReclip
     return true;
   }
+}
 
+class Points extends StatelessWidget {
+  final int points;
+  final bool isAboveSlider;
+  final bool isPointsYouNeed;
+  final Color color;
+
+  Points({this.color, this.isAboveSlider, this.isPointsYouNeed, this.points});
+
+  @override
+  Widget build(BuildContext context) {
+    final percent = points / 100.0;
+    final pointTextSize = 30.0 + (70.0 * percent);
+
+    return Row(
+      crossAxisAlignment:
+          isAboveSlider ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+      children: <Widget>[
+        FractionalTranslation(
+          translation: Offset(0.0, isAboveSlider? 0.18:-0.18),
+          child: new Text(
+            "$points",
+            style: new TextStyle(
+              fontSize: pointTextSize,
+              color: color,
+            ),
+          ),
+        ),
+        new Padding(
+          padding: EdgeInsets.only(left: 8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              new Padding(
+                padding: EdgeInsets.only(bottom: 4.0),
+                child: Text(
+                  'POINTS',
+                  style:
+                      new TextStyle(fontWeight: FontWeight.bold, color: color),
+                ),
+              ),
+              new Text(isPointsYouNeed ? 'YOU NEED' : 'YOU HAVE',
+                  style:
+                      new TextStyle(fontWeight: FontWeight.bold, color: color))
+            ],
+          ),
+        )
+      ],
+    );
+  }
 }
