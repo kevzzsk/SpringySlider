@@ -151,19 +151,17 @@ class _SpringSliderState extends State<SpringSlider>
             paddingBottom: paddingBottom,
           ),
           new SliderPoints(
-            sliderPercent: sliderController.state == SpringSliderState.dragging
-                ? sliderController.draggingPercent
-                : sliderPercent,
+            sliderController: sliderController,
             paddingTop: paddingTop,
             paddingBottom: paddingBottom,
           ),
-          new SliderDebug(
+          /* new SliderDebug(
             sliderPercent: sliderController.state == SpringSliderState.dragging
                 ? sliderController.draggingPercent
                 : sliderPercent,
             paddingTop: paddingTop,
             paddingBottom: paddingBottom,
-          )
+          ) */
         ],
       ),
     );
@@ -549,6 +547,31 @@ class SliderClipper extends CustomClipper<Path> {
 
     compositePath.addPath(rect, Offset(0.0, 0.0));
 
+    final leftCurve = Path();
+    leftCurve.moveTo(troughPoint.x, troughPoint.y);
+    leftCurve.quadraticBezierTo(
+      troughPoint.x - controlPointWidth,
+      troughPoint.y,
+      leftPoint.x,
+      leftPoint.y,
+    );
+    leftCurve.moveTo(troughPoint.x, troughPoint.y);
+    leftCurve.quadraticBezierTo(
+      troughPoint.x + controlPointWidth,
+      troughPoint.y,
+      centerPoint.x,
+      centerPoint.y,
+    );
+
+    leftCurve.lineTo(leftPoint.x, leftPoint.y); 
+    leftCurve.close();
+
+    if (crestSpringPercentFromBottom < basePercentFromBottom) {
+      compositePath.fillType = PathFillType.nonZero;
+    }
+
+    compositePath.addPath(leftCurve ,const Offset(0.0, 0.0));
+
     final rightCurve = Path();
     rightCurve.moveTo(crestPoint.x, crestPoint.y);
     rightCurve.quadraticBezierTo(
@@ -574,83 +597,62 @@ class SliderClipper extends CustomClipper<Path> {
 
     compositePath.addPath(rightCurve, const Offset(0.0, 0.0));
 
-     final leftCurve = Path();
-    leftCurve.moveTo(troughPoint.x, troughPoint.y);
-    leftCurve.quadraticBezierTo(
-      troughPoint.x - controlPointWidth,
-      troughPoint.y,
-      leftPoint.x,
-      leftPoint.y,
-    );
-    leftCurve.moveTo(troughPoint.x, troughPoint.y);
-    leftCurve.quadraticBezierTo(
-      troughPoint.x + controlPointWidth,
-      troughPoint.y,
-      centerPoint.x,
-      centerPoint.y,
-    );
-
-    leftCurve.lineTo(leftPoint.x, leftPoint.y); 
-    leftCurve.close();
-
-    if (crestSpringPercentFromBottom < basePercentFromBottom) {
-      compositePath.fillType = PathFillType.evenOdd;
-    }
-
-    compositePath.addPath(leftCurve ,const Offset(0.0, 0.0));
-
     return compositePath;
   }
 }
 
 class SliderPoints extends StatelessWidget {
-  final double sliderPercent;
+  final SpringySliderController sliderController;
   final double paddingTop;
   final double paddingBottom;
 
   const SliderPoints(
-      {Key key, this.sliderPercent, this.paddingTop, this.paddingBottom})
+      {Key key, this.sliderController, this.paddingTop, this.paddingBottom})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return new Padding(
-      padding: EdgeInsets.only(top: paddingTop, bottom: paddingBottom),
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final height = constraints.maxHeight;
-          final sliderY = height * (1.0 - sliderPercent);
-          final pointsYouNeed = (100 * (1.0 - sliderPercent)).round();
-          final pointsYouHave = (100 - pointsYouNeed);
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        double sliderPercent = sliderController.sliderValue ;
+        if ( sliderController.state == SpringSliderState.dragging){
+          sliderPercent =  sliderController.draggingPercent.clamp(0.0, 1.0);
+        }
 
-          return new Stack(
-            children: <Widget>[
-              new Positioned(
-                left: 30.0,
-                top: sliderY - 50.0,
-                child: FractionalTranslation(
-                    translation: Offset(0.0, -1.0),
-                    child: new Points(
-                      points: pointsYouNeed,
-                      isAboveSlider: true,
-                      isPointsYouNeed: true,
-                      color: Theme.of(context).highlightColor,
-                    )),
+        final height = constraints.maxHeight - paddingTop - paddingBottom;
+        final sliderY = height * (1.0 - sliderPercent) + paddingTop;
+        final pointsYouNeed = (100 * (1.0 - sliderPercent)).round();
+        final pointsYouHave = (100 - pointsYouNeed);
+        final pointsYouNeedPercent = 1.0 - sliderPercent;
+        final pointsYouHavePercent = sliderPercent;
+
+        return new Stack(
+          children: <Widget>[
+            new Positioned(
+              left: 30.0,
+              top: sliderY - 10.0 - (40.0 * pointsYouNeedPercent),
+              child: FractionalTranslation(
+                  translation: Offset(0.0, -1.0),
+                  child: new Points(
+                    points: pointsYouNeed,
+                    isAboveSlider: true,
+                    isPointsYouNeed: true,
+                    color: Theme.of(context).highlightColor,
+                  )),
+            ),
+            new Positioned(
+              left: 30.0,
+              top: sliderY + 10 +(40.0 * pointsYouHavePercent),
+              child: new Points(
+                points: pointsYouHave,
+                isAboveSlider: false,
+                isPointsYouNeed: false,
+                color: Theme.of(context).primaryColor,
               ),
-              new Positioned(
-                left: 30.0,
-                top: sliderY + 50.0,
-                child: new Points(
-                  points: pointsYouHave,
-                  isAboveSlider: false,
-                  isPointsYouNeed: false,
-                  color: Theme.of(context).primaryColor,
-                ),
-              )
-            ],
-          );
-        },
-      ),
+            )
+          ],
+        );
+      },
     );
   }
 }
@@ -666,14 +668,14 @@ class Points extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final percent = points / 100.0;
-    final pointTextSize = 30.0 + (70.0 * percent);
+    final pointTextSize = 50.0 + (50.0 * percent);
 
     return Row(
       crossAxisAlignment:
           isAboveSlider ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: <Widget>[
         FractionalTranslation(
-          translation: Offset(0.0, isAboveSlider ? 0.18 : -0.18),
+          translation: Offset(-0.05 * percent, isAboveSlider ? 0.18 : -0.18),
           child: new Text(
             "$points",
             style: new TextStyle(
@@ -709,15 +711,15 @@ class Points extends StatelessWidget {
 
 class SpringySliderController extends ChangeNotifier {
   final SpringDescription sliderSpring = new SpringDescription(
-    mass: 1.0,
-    stiffness: 1000.0,
-    damping: 30.0,
+    mass: 50.0,
+    stiffness: 80.0,
+    damping: 10.0,
   );
 
   final SpringDescription crestSpring = new SpringDescription(
-    mass: 1.0,
+    mass: 2.0,
     stiffness: 5.0,
-    damping: 0.5,
+    damping: 0.1,
   );
 
   final TickerProvider _vsync;
@@ -833,7 +835,7 @@ class SpringySliderController extends ChangeNotifier {
         crestSpring,
         _crestSpringingStartPercent,
         _crestSpringingEndPercent,
-        0.5 * crestSpringNormal);
+        0.4 * crestSpringNormal * (_crestSpringingStartPercent - _crestSpringingEndPercent).abs());
 
     _springTime = 0.0;
 
